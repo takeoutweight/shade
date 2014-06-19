@@ -6,6 +6,7 @@ data AttrValue s = AttrString s -- NativeString
                  | AttrBool Bool
                  | AttrDouble Double
                  | AttrInt Int
+                 | AttrDict [(s,s)]
                  | AttrNil
 
 stringAttr :: (IsString s) => String -> AttrValue s
@@ -521,8 +522,8 @@ lang            :: (IsString s, Wrapper w) => String -> w (s, AttrValue s)
 lang a            = wrap (fromString "lang",stringAttr a)
 spellCheck      :: (IsString s, Wrapper w) => Bool -> w (s, AttrValue s) -- TODO true false inherited
 spellCheck a      = wrap (fromString "spellCheck",AttrBool a)
-style           :: (IsString s, Wrapper w) => String -> w (s, AttrValue s) -- TODO Clay?
-style a           = wrap (fromString "style",stringAttr a)
+style           :: (IsString s, Wrapper w) => [(String,String)] -> w (s, AttrValue s) -- TODO Clay?
+style a           = wrap (fromString "style",AttrDict (map (\(k,v) -> (fromString k, fromString v)) a))
 tabIndex        :: (IsString s, Wrapper w) => Int -> w (s, AttrValue s)
 tabIndex a        = wrap (fromString "tabIndex",AttrInt a)
 title           :: (IsString s, Wrapper w) => String -> w (s, AttrValue s)

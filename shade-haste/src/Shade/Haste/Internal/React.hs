@@ -16,6 +16,7 @@ foreign import ccall js_empty_object :: IO RawAttrs
 foreign import ccall "js_set_field" js_set_field_String :: RawAttrs -> JSString -> JSString -> IO ()
 foreign import ccall "js_set_field" js_set_field_Double :: RawAttrs -> JSString -> Double -> IO ()
 foreign import ccall "js_set_field" js_set_field_Int :: RawAttrs -> JSString -> Int -> IO ()
+foreign import ccall "js_set_field" js_set_field_Obj :: RawAttrs -> JSString -> RawAttrs -> IO ()
 foreign import ccall js_set_field_True :: RawAttrs -> JSString -> IO ()
 foreign import ccall js_set_field_False :: RawAttrs -> JSString -> IO ()
 foreign import ccall js_targetValue :: RawChangeEvent -> JSString
@@ -266,6 +267,9 @@ element constructor attrs ehs content =
     setField attr (fld, (AttrBool False)) = js_set_field_False attr fld
     setField attr (fld, (AttrDouble v)) = js_set_field_Double attr fld v
     setField attr (fld, (AttrInt v)) = js_set_field_Int attr fld v
+    setField attr (fld, (AttrDict vs)) = do d <- js_empty_object
+                                            mapM_ (\(k,v)-> js_set_field_String d k v) vs
+                                            js_set_field_Obj attr fld d
     setField attr (fld, AttrNil) = return ()
 
 voidElement :: (Wrapper r) => (RawAttrs -> IO React) -> [r (JSString, (AttrValue JSString))] -> [EventHandler] -> IO React
