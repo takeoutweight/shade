@@ -26,7 +26,7 @@ instance FireFirst AsyncImpl where
     where
       unwrap (AsyncImpl v) = v
 
-mkAsyncs :: IO ([(R.EventHandler, IO Bool)], ElemAsyncs ShadeHaste)
+mkAsyncs :: IO (R.React -> IO (), [(R.EventHandler, IO Bool)], ElemAsyncs ShadeHaste)
 mkAsyncs = 
   do (mvClick, asClick) <- mkMVar
      (mvDoubleClick, asDoubleClick) <- mkMVar
@@ -35,21 +35,27 @@ mkAsyncs =
      (mvKeyPress, asKeyPress) <- mkMVar
      (mvKeyDown, asKeyDown) <- mkMVar
      (mvBlur, asBlur) <- mkMVar
-     return ( [(R.onClick (fire mvClick), someListeners mvClick)
-              ,(R.onDoubleClick (fire mvDoubleClick), someListeners mvDoubleClick)
-              ,(R.onChange (fire mvChange), someListeners mvChange)
-              ,(R.onKeyUp (fire mvKeyUp), someListeners mvKeyUp)
-              ,(R.onKeyPress (fire mvKeyPress), someListeners mvKeyPress)
-              ,(R.onKeyDown (fire mvKeyDown), someListeners mvKeyDown)
-              ,(R.onBlur (fire mvBlur), someListeners mvBlur)
-              ]
-            , (ElemAsyncs { onClick = asClick
-                          , onDoubleClick = asDoubleClick
-                          , onChange = asChange
-                          , onKeyUp = asKeyUp
-                          , onKeyPress = asKeyPress
-                          , onKeyDown = asKeyDown
-                          , onBlur = asBlur}))
+     domVar <- newMVar []
+     return
+       ( \r -> modifyMVar_ domVar (\v -> return (r : v))
+       , [(R.onClick (fire mvClick), someListeners mvClick)
+         ,(R.onDoubleClick (fire mvDoubleClick), someListeners mvDoubleClick)
+         ,(R.onChange (fire mvChange), someListeners mvChange)
+         ,(R.onKeyUp (fire mvKeyUp), someListeners mvKeyUp)
+         ,(R.onKeyPress (fire mvKeyPress), someListeners mvKeyPress)
+         ,(R.onKeyDown (fire mvKeyDown), someListeners mvKeyDown)
+         ,(R.onBlur (fire mvBlur), someListeners mvBlur)
+         ]
+       , (ElemAsyncs
+            { onClick = asClick
+            , onDoubleClick = asDoubleClick
+            , onChange = asChange
+            , onKeyUp = asKeyUp
+            , onKeyPress = asKeyPress
+            , onKeyDown = asKeyDown
+            , onBlur = asBlur
+            , domElements = fmap catMaybes (mapM R.getDomNode =<< readMVar domVar)
+            }))
   where
     mkMVar = do mv <- newMVar []
                 return (mv, AsyncImpl [AsyncSource (id, mv)])
@@ -65,18 +71,22 @@ listenedCallbacks cbs = mapM (\(h,s) -> do some <- s
 
 defaultElement constructor attrs children =
   ShadeHaste $ do (_, chlds) <- liftIO (runWriterT (runShadeHaste children))
-                  (callbacks, asyncs) <- liftIO mkAsyncs
+                  (writeReactElt, callbacks, asyncs) <- liftIO mkAsyncs
                   tell (D.singleton
                         (do c <- (sequence (D.toList chlds))
                             mcbs <- listenedCallbacks callbacks
-                            (constructor attrs (catMaybes mcbs) c)))
+                            r <- constructor attrs (catMaybes mcbs) c
+                            writeReactElt r
+                            return r))
                   return asyncs
   
 voidElement constructor attrs =
-  ShadeHaste $ do (callbacks, asyncs) <- liftIO mkAsyncs
+  ShadeHaste $ do (writeReactElt, callbacks, asyncs) <- liftIO mkAsyncs
                   tell (D.singleton
                         (do mcbs <- listenedCallbacks callbacks
-                            (constructor attrs (catMaybes mcbs))))
+                            r <- constructor attrs (catMaybes mcbs)
+                            writeReactElt r
+                            return r))
                   return asyncs
   
 instance ToString JSString where
@@ -116,8 +126,7 @@ runClient c = do (s, cs) <- runWriterT (runShadeHaste c)
 
 renderClient :: Elem -> [IO R.React] -> IO ()
 renderClient e rs = 
-  do putStrLn "Rendering."
-     relts <- sequence rs
+  do relts <- sequence rs
      case relts of
         (a:_) -> R.renderComponent e a -- TODO: Just attaching first thing at the toplevel. Defensive div wrapper? is multiple OK?
         _ -> return ()

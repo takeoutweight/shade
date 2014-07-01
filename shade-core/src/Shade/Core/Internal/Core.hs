@@ -15,6 +15,7 @@ data ElemAsyncs s =
              , onKeyPress    :: Async s (E.KeyboardEvent (NativeElem s))
              , onKeyDown     :: Async s (E.KeyboardEvent (NativeElem s))
              , onBlur        :: Async s (E.FocusEvent (NativeElem s))
+             , domElements   :: IO [NativeElem s] -- TODO Make an async too, on componentDidMount etc. (need to hook into component lifecycle stuff)
              }
 
 class ToString a where

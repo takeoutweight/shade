@@ -64,6 +64,16 @@ function js_React_DOM(tagName, attrs) {return React.DOM[tagName](attrs);}
 function js_empty() {return [];}
 function js_push(a,v) {a.push(v);}
 
+// Ptr (Maybe React)
+function js_React_getDomNode(r) {
+  try {
+    var ret = [1, [0, r.getDOMNode()]];
+  } catch(e) {
+    return [0];
+  }
+  return ret;
+}
+
 // Normal elements
 function js_React_DOM_a(a,c) {return React.DOM.a(a,c);}
 function js_React_DOM_abbr(a,c) {return React.DOM.abbr(a,c);}

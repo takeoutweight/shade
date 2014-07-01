@@ -29,6 +29,8 @@ foreign import ccall js_set_onKeyPress    :: Ptr (RawKeyboardEvent -> IO ()) -> 
 foreign import ccall js_set_onKeyDown     :: Ptr (RawKeyboardEvent -> IO ()) -> RawAttrs -> IO ()
 foreign import ccall js_set_onBlur        :: Ptr (RawFocusEvent -> IO ()) -> RawAttrs -> IO ()
 
+foreign import ccall js_React_getDomNode :: React -> IO (Ptr (Maybe Elem))
+
 foreign import ccall "js_empty" js_ReactArray_empty :: IO ReactArray
 foreign import ccall "js_push" js_ReactArray_push :: ReactArray -> React -> IO ()
 
@@ -252,6 +254,9 @@ onKeyUp cb = EventHandler (js_set_onKeyUp (toPtr (cb . parseKeyboardEvent)))
 
 onBlur :: ((FocusEvent Elem) -> IO ()) -> EventHandler
 onBlur cb = EventHandler (js_set_onBlur (toPtr (cb . parseFocusEvent)))
+
+getDomNode :: React -> IO (Maybe Elem)
+getDomNode r = fmap fromPtr (js_React_getDomNode r)
     
 element :: (Wrapper r) => (RawAttrs -> ReactArray -> IO React) -> [r (JSString, (AttrValue JSString))] -> [EventHandler] -> [React] -> IO React
 element constructor attrs ehs content =
