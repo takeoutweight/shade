@@ -4,19 +4,9 @@ import Control.Applicative (Applicative)
 import Data.String (IsString)
 import qualified Shade.Core.Internal.Attributes as A
 import qualified Shade.Core.Internal.Events as E
+import Prelude hiding (div)
 
 type Attrs s a = [a ((NativeString s), A.AttrValue (NativeString s))]
-
-data ElemAsyncs s =
-  ElemAsyncs { onClick       :: Async s (E.MouseEvent (NativeElem s))
-             , onDoubleClick :: Async s (E.MouseEvent (NativeElem s))
-             , onChange      :: Async s (E.ChangeEvent (NativeString s))
-             , onKeyUp       :: Async s (E.KeyboardEvent (NativeElem s))
-             , onKeyPress    :: Async s (E.KeyboardEvent (NativeElem s))
-             , onKeyDown     :: Async s (E.KeyboardEvent (NativeElem s))
-             , onBlur        :: Async s (E.FocusEvent (NativeElem s))
-             , domElements   :: IO [NativeElem s] -- TODO Make an async too, on componentDidMount etc. (need to hook into component lifecycle stuff)
-             }
 
 class ToString a where
   toString :: a -> String
@@ -31,6 +21,7 @@ class ( Applicative s
   type Async s :: * -> *
   type NativeString s :: *
   type NativeElem s :: *
+  data ElemAsyncs s :: *
   button  :: Attrs s A.ButtonAttr   -> s a -> s (ElemAsyncs s)
   div     :: Attrs s A.DivAttr      -> s a -> s (ElemAsyncs s)
   header  :: Attrs s A.HeaderAttr   -> s a -> s (ElemAsyncs s)
@@ -46,6 +37,14 @@ class ( Applicative s
   input   :: Attrs s A.InputAttr           -> s (ElemAsyncs s)
   text    :: String                        -> s ()
   letElt  :: s a -> s (a , s a)
+  onClick       :: ElemAsyncs s -> Async s (E.MouseEvent    (NativeElem s))
+  onDoubleClick :: ElemAsyncs s -> Async s (E.MouseEvent    (NativeElem s))
+  onChange      :: ElemAsyncs s -> Async s (E.ChangeEvent   (NativeString s))
+  onKeyUp       :: ElemAsyncs s -> Async s (E.KeyboardEvent (NativeElem s))
+  onKeyPress    :: ElemAsyncs s -> Async s (E.KeyboardEvent (NativeElem s))
+  onKeyDown     :: ElemAsyncs s -> Async s (E.KeyboardEvent (NativeElem s))
+  onBlur        :: ElemAsyncs s -> Async s (E.FocusEvent    (NativeElem s))
+  domElements   :: ElemAsyncs s -> IO [NativeElem s] -- TODO Make an async too, on componentDidMount etc. (need to hook into component lifecycle stuff)
 
 class FireFirst a where
   fireFirst  :: [a b] -> a b -- Meant in the monoid mconcat sense

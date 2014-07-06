@@ -10,6 +10,7 @@ import Data.Maybe (catMaybes)
 import Haste.DOM (Elem)
 import Haste.Prim (JSString, fromJSStr)
 import Shade.Core
+import qualified Shade.Core.Events as E
 import qualified Shade.Haste.Internal.React as R
 
 -- a is the return type of the Async. various "i" sources can trigger it, and various handlers can be installed into the callback.
@@ -46,15 +47,15 @@ mkAsyncs =
          ,(R.onKeyDown (fire mvKeyDown), someListeners mvKeyDown)
          ,(R.onBlur (fire mvBlur), someListeners mvBlur)
          ]
-       , (ElemAsyncs
-            { onClick = asClick
-            , onDoubleClick = asDoubleClick
-            , onChange = asChange
-            , onKeyUp = asKeyUp
-            , onKeyPress = asKeyPress
-            , onKeyDown = asKeyDown
-            , onBlur = asBlur
-            , domElements = fmap catMaybes (mapM R.getDomNode =<< readMVar domVar)
+       , (ElemAsyncsHaste
+            { _onClick = asClick
+            , _onDoubleClick = asDoubleClick
+            , _onChange = asChange
+            , _onKeyUp = asKeyUp
+            , _onKeyPress = asKeyPress
+            , _onKeyDown = asKeyDown
+            , _onBlur = asBlur
+            , _domElements = fmap catMaybes (mapM R.getDomNode =<< readMVar domVar)
             }))
   where
     mkMVar = do mv <- newMVar []
@@ -98,6 +99,16 @@ instance Shade ShadeHaste where
   type Async ShadeHaste = AsyncImpl
   type NativeString ShadeHaste = JSString
   type NativeElem ShadeHaste = Elem
+  data ElemAsyncs ShadeHaste =
+    ElemAsyncsHaste { _onClick       :: Async ShadeHaste (E.MouseEvent (NativeElem ShadeHaste))
+                    , _onDoubleClick :: Async ShadeHaste (E.MouseEvent (NativeElem ShadeHaste))
+                    , _onChange      :: Async ShadeHaste (E.ChangeEvent (NativeString ShadeHaste))
+                    , _onKeyUp       :: Async ShadeHaste (E.KeyboardEvent (NativeElem ShadeHaste))
+                    , _onKeyPress    :: Async ShadeHaste (E.KeyboardEvent (NativeElem ShadeHaste))
+                    , _onKeyDown     :: Async ShadeHaste (E.KeyboardEvent (NativeElem ShadeHaste))
+                    , _onBlur        :: Async ShadeHaste (E.FocusEvent (NativeElem ShadeHaste))
+                    , _domElements   :: IO [NativeElem ShadeHaste] -- TODO Make an async too, on componentDidMount etc. (need to hook into component lifecycle stuff)
+                    }
   button a c = defaultElement R.button a c
   div a c = defaultElement R.div a c
   header a c = defaultElement R.header a c
@@ -114,6 +125,14 @@ instance Shade ShadeHaste where
   text s = ShadeHaste ((tell (D.singleton (R.text s))) >> return ())
   letElt c = ShadeHaste $ do (s, chlds) <- liftIO (runWriterT (runShadeHaste c))
                              return (s, ShadeHaste (tell chlds >> return s))
+  onClick = _onClick
+  onDoubleClick = _onDoubleClick
+  onChange = _onChange
+  onKeyUp = _onKeyUp
+  onKeyPress = _onKeyPress
+  onKeyDown = _onKeyDown
+  onBlur = _onBlur
+  domElements = _domElements
 
 listen :: AsyncImpl a -> (a -> IO ()) -> IO ()
 listen (AsyncImpl as) callb = mapM_ addCB as
